@@ -3,7 +3,7 @@
 # Script to convert .MTS files to .MP4 using ffmpeg
 # Usage:
 #   ./convert_mts_to_mp4.sh [MTS file] [destination path]
-#   ./convert_mts_to_mp4.sh -all [destination directory]
+#   ./convert_mts_to_mp4.sh -all [MTS directory] [destination directory]
 
 convert_single() {
   local FILENAME="$1"
@@ -22,17 +22,28 @@ convert_single() {
 }
 
 convert_all() {
-  local DEST_DIR="$1"
+  local SRC_DIR="$1"
+  local DEST_DIR="$2"
+  
+  if [ ! -d "$SRC_DIR" ]; then
+    echo "Source directory does not exist: $SRC_DIR"
+    exit 2
+  fi
+  
   if [ ! -d "$DEST_DIR" ]; then
-    echo "Destination directory does not exist: $DEST_DIR"
-    exit 3
+    echo "Creating destination directory: $DEST_DIR"
+    mkdir -p "$DEST_DIR"
+    if [ $? -ne 0 ]; then
+      echo "Failed to create destination directory: $DEST_DIR"
+      exit 3
+    fi
   fi
 
-  echo "Scanning for .MTS files in $(pwd) ..."
+  echo "Scanning for .MTS files in $SRC_DIR ..."
   shopt -s nullglob
-  for f in *.MTS *.mts; do
+  for f in "$SRC_DIR"/*.MTS "$SRC_DIR"/*.mts; do
     # Get the creation/modification date of the file
-    # Use stat; if on macOS, you may need to adjust stat options
+    # Linux/macOS compatibility: different stat invocations and date formatting
     if date_str=$(stat --format='%y' "$f" 2>/dev/null); then
       # Linux stat: %y = "YYYY-MM-DD HH:MM:SS.xxxxxx"
       dt=$(echo "$date_str" | awk '{print $1" "$2}')
@@ -53,11 +64,11 @@ convert_all() {
 
 # Main logic
 if [ "$1" == "-all" ]; then
-  if [ $# -ne 2 ]; then
-    echo "Usage: $0 -all /path/to/output_directory"
+  if [ $# -ne 3 ]; then
+    echo "Usage: $0 -all [MTS directory] [destination directory]"
     exit 1
   fi
-  convert_all "$2"
+  convert_all "$2" "$3"
 else
   if [ $# -lt 2 ]; then
     echo "Usage: $0 filename.mts /path/to/output.mp4"
